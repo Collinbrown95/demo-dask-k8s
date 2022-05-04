@@ -1,0 +1,9 @@
+# cluster.yaml
+apiVersion: kubernetes.dask.org/v1
+kind: DaskCluster
+metadata:
+  name: simple-cluster
+  namespace: dask-user
+spec:
+  image: "daskdev/dask:latest"
+  replicas: 3
