@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dask-notebook
+  namespace: dask-user
+  labels:
+    name: dask-notebook
+spec:
+  serviceAccountName: dask-notebook-sa
+  containers:
+    - name: dask-notebook
+      image: k3d-k8s-dask-registry:5050/k8s-dask-dev
+      resources:
+        limits:
+          memory: "2G"
+          cpu: "500m"
+      ports:
+        - containerPort: 8888

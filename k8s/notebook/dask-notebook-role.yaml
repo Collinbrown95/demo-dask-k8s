@@ -1,0 +1,49 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: create-pods
+  namespace: dask-user
+rules:
+  - apiGroups:
+      - "" # indicates the core API group
+    resources:
+      - "pods"
+    verbs:
+      - "get"
+      - "list"
+      - "watch"
+      - "create"
+      - "delete"
+  - apiGroups:
+      - "" # indicates the core API group
+    resources:
+      - "pods/log"
+    verbs:
+      - "get"
+      - "list"
+  - apiGroups:
+      - "" # indicates the core API group
+    resources:
+      - "services"
+    verbs:
+      - "get"
+      - "list"
+      - "watch"
+      - "create"
+      - "delete"
+  - apiGroups:
+      - "policy" # indicates the policy API group
+    resources:
+      - "poddisruptionbudgets"
+    verbs:
+      - "get"
+      - "list"
+      - "watch"
+      - "create"
+      - "delete"
+  - apiGroups:
+      - "kubernetes.dask.org"
+    resources:
+      - "daskclusters"
+    verbs:
+      - "create"
