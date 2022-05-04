@@ -1,0 +1,4 @@
+mirrors:
+  "localhost:5050":
+    endpoint:
+      - http://k8s-dask-registry:5050

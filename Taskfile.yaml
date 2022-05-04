@@ -1,0 +1,119 @@
+version: "3"
+dotenv: [".env"]
+output: prefixed
+silent: true
+
+vars:
+  CLUSTER_NAME: k8s-dask
+  CONTEXT_NAME: "k3d-{{.CLUSTER_NAME}}"
+  REGISTRY_NAME: "{{.CLUSTER_NAME}}-registry"
+  REGISTRY_PORT: "5050"
+  LB_PORT: "9900" # Cluster load balancer port
+  DEV_CONTAINER_TAG: "{{.CLUSTER_NAME}}-dev"
+
+tasks:
+  #  _    _____     _
+  # | | _|___ /  __| |
+  # | |/ / |_ \ / _` |
+  # |   < ___) | (_| |
+  # |_|\_\____/ \__,_|
+  k3d:registry:create:
+    prefix: ⚙️ > registry create
+    desc: create a local k3d image registry
+    cmds:
+      - "k3d registry create {{.REGISTRY_NAME}} --port {{.REGISTRY_PORT}}"
+
+  k3d:registry:destroy:
+    prefix: ⚙️ > registry destroy
+    desc: delete a local k3d registry
+    cmds:
+      - "k3d registry delete {{.REGISTRY_NAME}}"
+
+  k3d:registry:config:
+    prefix: ⚙️ > registry config
+    desc: generate local k3d registry configuration
+    cmds:
+      - |
+        cat << EOF > k3d/registries.yaml
+        mirrors:
+          "localhost:{{.REGISTRY_PORT}}":
+            endpoint:
+              - http://{{.REGISTRY_NAME}}:{{.REGISTRY_PORT}}
+        EOF
+
+  k3d:cluster:create:
+    prefix: ⚙️ > create
+    desc: create k3d cluster
+    # deps:
+    #   - task: k3d:registry:config
+    #   - task: k3d:registry:create
+    cmds:
+      - k3d cluster create {{.CLUSTER_NAME}} -p "{{.LB_PORT}}:80@loadbalancer" --registry-use k3d-{{.REGISTRY_NAME}}:{{.REGISTRY_PORT}} --registry-config k3d/registries.yaml
+
+  k3d:cluster:destroy:
+    prefix: ⚙️ > destroy
+    desc: destroy k3d cluster
+    deps:
+      - task: k3d:registry:destroy
+    cmds:
+      - "k3d cluster delete {{.CLUSTER_NAME}}"
+
+  k3d:start:
+    prefix: ⚙️ > start
+    desc: starts k3d cluster
+    cmds:
+      - "k3d cluster start {{.CLUSTER_NAME}}"
+
+  k3d:stop:
+    prefix: ⚙️ > stop
+    desc: stops k3d cluster
+    cmds:
+      - "k3d cluster stop {{.CLUSTER_NAME}}"
+  #      _            _
+  #   __| | ___   ___| | _____ _ __
+  #  / _` |/ _ \ / __| |/ / _ \ '__|
+  # | (_| | (_) | (__|   <  __/ |
+  #  \__,_|\___/ \___|_|\_\___|_|
+  build:dev-image:
+    prefix: build dev image
+    desc: build development image
+    cmds:
+      - "docker build . -t {{.DEV_CONTAINER_TAG}}"
+      - "docker tag {{.DEV_CONTAINER_TAG}} localhost:{{.REGISTRY_PORT}}/{{.DEV_CONTAINER_TAG}}"
+      - "docker push localhost:{{.REGISTRY_PORT}}/{{.DEV_CONTAINER_TAG}}"
+  #                      _
+  #   ___ ___  _ __   __| | __ _
+  #  / __/ _ \| '_ \ / _` |/ _` |
+  # | (_| (_) | | | | (_| | (_| |
+  #  \___\___/|_| |_|\__,_|\__,_|
+  conda:export:
+    prefix: conda export
+    desc: export conda environment (no builds, no prefix)
+    cmds:
+      - conda env export --no-builds | sed 's/prefix:.*//g' > environment.yml
+
+  #  _    ___
+  # | | _( _ ) ___
+  # | |/ / _ \/ __|
+  # |   < (_) \__ \
+  # |_|\_\___/|___/
+  k8s:dask-operator:
+    prefix: dask operator
+    desc: install dask operator onto cluster
+    cmds:
+      - kubectl apply -f https://raw.githubusercontent.com/dask/dask-kubernetes/main/dask_kubernetes/operator/customresources/daskcluster.yaml
+      - kubectl apply -f https://raw.githubusercontent.com/dask/dask-kubernetes/main/dask_kubernetes/operator/customresources/daskworkergroup.yaml
+      - kubectl apply -f https://raw.githubusercontent.com/dask/dask-kubernetes/main/dask_kubernetes/operator/deployment/manifest.yaml
+
+  k8s:apply-dask:
+    prefix: ⚙️ > dask notebook
+    desc: Installs manifests for a dask notebook with rbac to manage pods
+    cmds:
+      - kubectl apply -f k8s/dask-user-namespace.yaml
+      - kubectl apply -f k8s/
+
+  k8s:delete-dask:
+    prefix: ⚙️ > dask notebook
+    desc: Installs manifests for a dask notebook with rbac to manage pods
+    cmds:
+      - kubectl delete -f k8s/
